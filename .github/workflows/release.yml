@@ -37,10 +37,11 @@ jobs:
           - os: macos-15-intel
             target: x86_64-apple-darwin
             asset: sentinela-macos-x86_64
-          - os: macos-15
+          # Cross-compile Apple Silicon on Intel to avoid the ARM runner queue.
+          - os: macos-15-intel
             target: aarch64-apple-darwin
             asset: sentinela-macos-arm64
-          - os: windows-latest
+          - os: windows-2022
             target: x86_64-pc-windows-msvc
             asset: sentinela-windows-x64
     steps:
@@ -63,8 +64,9 @@ jobs:
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      # Tests execute on the host; the release build uses the distribution target.
       - name: Test
-        run: cargo test --locked --target ${{ matrix.target }}
+        run: cargo test --locked
       - name: Build release binary
         run: cargo build --release --locked --target ${{ matrix.target }}
       - name: Test mobile terminal
