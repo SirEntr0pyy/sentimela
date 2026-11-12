@@ -1998,17 +1998,20 @@ mod tests {
         assert_eq!(translate_udp_state("07"), "UNCONN");
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_get_active_sockets() {
-        let trap_ports = [2121, 2222, 8080];
-        let sockets = get_active_sockets(&trap_ports);
-        // Em qualquer máquina Linux a correr o teste, existem sockets abertos
-        assert!(!sockets.is_empty());
-        for s in &sockets {
-            assert!(!s.local_addr.is_empty());
-            assert!(!s.proto.is_empty());
-            assert!(!s.state.is_empty());
-        }
+        // Own the socket: do not depend on unrelated services on the test host.
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let sockets = get_active_sockets(&[address.port()]);
+        let socket = sockets.iter()
+            .find(|socket| socket.local_addr == address.to_string())
+            .expect("the inspector must find the listener owned by this test");
+        assert_eq!(socket.proto, "TCP");
+        assert_eq!(socket.state, "LISTEN");
+        assert!(socket.is_honeypot);
+        assert!(!socket.is_external);
     }
 
     #[tokio::test]

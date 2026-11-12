@@ -192,6 +192,12 @@ Press `e` at any time to dump complete session threat intelligence in 5 industry
 ### Dynamic live honeypot trap deployment
 Press `o` in the dashboard to open the live trap spawner prompt. Type any TCP port (e.g. `3306`, `5432`, `8000`) and press `Enter`. Sentinela immediately binds an asynchronous listener dual-stack (IPv4 & IPv6) and attaches protocol handshake emulation without restarting the monitoring daemon.
 
+### Active sockets inspector
+
+The `c` panel currently reads Linux `/proc/net` tables. Socket enumeration is
+Linux-only; Windows and macOS currently return an empty list in this panel.
+Honeypot detection remains available on those platforms.
+
 ### Executive SOC metrics & telemetry dashboard
 Press `m` to toggle the dedicated Metrics and Forensic Analytics modal:
 - **Target Port Distribution:** Real-time proportional ASCII histogram of top attacked ports.
