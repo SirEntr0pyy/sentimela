@@ -180,10 +180,22 @@ impl Agent {
 
     pub fn send(&mut self, incident: &Incident) {
         self.sequence += 1;
+        let mut captured = incident.clone();
+        if let Some(payload) = captured.payload.as_mut() {
+            const MARKER: &str = "\n[payload truncated]";
+            if payload.len() > 2048 {
+                let mut end = 2048 - MARKER.len();
+                while !payload.is_char_boundary(end) {
+                    end -= 1;
+                }
+                payload.truncate(end);
+                payload.push_str(MARKER);
+            }
+        }
         let event = Event {
             node_id: self.node_id.clone(),
             event_id: format!("{}-{}", self.session, self.sequence),
-            incident: incident.clone(),
+            incident: captured,
         };
         // Bound both item count and serialized item size.
         if !event.validate() || self.queue.try_send(event).is_err() {

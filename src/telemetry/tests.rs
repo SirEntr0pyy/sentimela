@@ -359,13 +359,20 @@ async fn agent_reuses_id_and_retries_transient_errors() {
     })
     .unwrap();
     let stats = agent.counters.clone();
-    agent.send(&event("a", "1").incident);
+    let mut original = event("a", "1").incident;
+    original.payload = Some("界".repeat(2000));
+    agent.send(&original);
+    assert_eq!(original.payload.as_ref().unwrap().len(), 6000);
     agent.finish().await;
     let events = received.lock().await;
     assert_eq!(events.len(), 3);
     assert!(events
         .iter()
         .all(|e| e.event_id == events[0].event_id && !e.event_id.is_empty()));
+    let payload = events[0].incident.payload.as_ref().unwrap();
+    assert!(payload.len() <= 2048);
+    assert!(payload.ends_with("[payload truncated]"));
+    assert!(events[0].validate());
     assert_eq!(stats.sent.load(Ordering::Relaxed), 1);
     server.abort();
 }

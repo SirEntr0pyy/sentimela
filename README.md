@@ -137,8 +137,9 @@ snapshot e mostra o erro. Usa tmux para manter sessões entre reconexões SSH.
 
 Quando uma fila enche, o trabalho adicional é recusado ou descartado em vez de
 a fila crescer sem limite. O dashboard mostra **drop** e os contadores do envio
-ao Hub no rodapé; o agente imprime-os ao sair. Eventos demasiado grandes para
-a telemetria também são contabilizados como descartados.
+ao Hub no rodapé; o agente imprime-os ao sair. Payloads maiores que 2048 bytes
+são enviados com truncagem assinalada; a captura original permanece no agente.
+Eventos com outros metadados inválidos são contabilizados como descartados.
 
 **Entrega com repetição limitada, não entrega garantida:** a fila do emissor
 fica em RAM. Uma falha prolongada ou a saída do processo pode perder eventos.
