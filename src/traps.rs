@@ -4,7 +4,7 @@ use chrono::Local;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::UnboundedSender;
+use crate::event_bus::IncidentSender;
 
 /// Portas armadilha padrão se não forem especificadas pelo utilizador
 pub const DEFAULT_TRAP_PORTS: &[u16] = &[2121, 2222, 2323, 8080, 8443];
@@ -301,7 +301,7 @@ pub async fn interact_with_probe(mut socket: tokio::net::TcpStream, port: u16) -
 /// e inicia a rotina assíncrona de aceitação de sondagens.
 pub async fn spawn_trap_listener(
     port: u16,
-    queue_tx: tokio::sync::mpsc::UnboundedSender<TrapConnection>,
+    queue_tx: tokio::sync::mpsc::Sender<TrapConnection>,
 ) -> Result<(), String> {
     let listener = match TcpListener::bind(format!("[::]:{}", port)).await {
         Ok(l) => l,
@@ -329,19 +329,21 @@ pub async fn spawn_trap_listener(
                         continue;
                     }
 
+                    let Some(permit) = crate::event_bus::admit() else { continue; };
                     let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
                     let q_tx_clone = queue_tx.clone();
 
                     // Trata a conexão e executa o diálogo interativo do protocolo da porta
                     tokio::spawn(async move {
+                        let _permit = permit;
                         let payload = interact_with_probe(socket, port).await;
 
-                        let _ = q_tx_clone.send(TrapConnection {
+                        if q_tx_clone.try_send(TrapConnection {
                             attacker_ip,
                             port,
                             timestamp: now,
                             payload,
-                        });
+                        }).is_err() { crate::event_bus::reject(); }
                     });
                 }
                 Err(_) => {
@@ -359,14 +361,14 @@ pub async fn spawn_trap_listener(
 /// Inicia armadilhas TCP nas portas fornecidas.
 /// Devolve (portas_ativas, portas_com_erro, transmissor_de_conexoes).
 pub async fn start_traps(
-    tx: UnboundedSender<Incident>,
+    tx: IncidentSender,
     trap_ports: &[u16],
-) -> (Vec<u16>, Vec<u16>, tokio::sync::mpsc::UnboundedSender<TrapConnection>) {
+) -> (Vec<u16>, Vec<u16>, tokio::sync::mpsc::Sender<TrapConnection>) {
     let mut active = Vec::new();
     let mut failed = Vec::new();
 
     // Fila assíncrona para mover lookups GeoIP e I/O de disco para fora do ciclo accept()
-    let (queue_tx, mut queue_rx) = tokio::sync::mpsc::unbounded_channel::<TrapConnection>();
+    let (queue_tx, mut queue_rx) = tokio::sync::mpsc::channel::<TrapConnection>(256);
 
     // Worker assíncrono dedicado a processar eventos GeoIP e gravação em disco
     let tx_worker = tx.clone();

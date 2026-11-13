@@ -1,8 +1,10 @@
 mod config;
+mod event_bus;
 mod models;
 mod network;
 mod pcap;
 mod scanner;
+mod telemetry;
 mod traps;
 mod ui;
 
@@ -35,14 +37,20 @@ fn restore_terminal() {
     let _ = execute!(io::stdout(), crossterm::cursor::Show);
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main(worker_threads = 2)]
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Configura hook de pânico para restaurar o terminal antes de abortar
     let default_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         restore_terminal();
         default_panic_hook(panic_info);
     }));
+
+    let raw_args: Vec<String> = env::args().skip(1).collect();
+    if matches!(raw_args.first().map(String::as_str), Some("hub" | "watch")) {
+        // Hub and viewer own their shutdown signals.
+        if telemetry::command(&raw_args).await? { return Ok(()); }
+    }
 
     // Configura canal de escuta para SIGINT (Ctrl+C)
     let (sigint_tx, mut sigint_rx) = mpsc::channel::<()>(1);
@@ -52,7 +60,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let raw_args: Vec<String> = env::args().skip(1).collect();
     if raw_args.iter().any(|a| a == "-h" || a == "--help") {
         print_help();
         return Ok(());
@@ -71,10 +78,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             Err(e) => {
                 eprintln!("\x1b[1;31m[!] Erro ao gerar '{}': {}\x1b[0m", p.display(), e);
-                return Err(Box::new(e) as Box<dyn Error>);
+                return Err(Box::new(e) as Box<dyn Error + Send + Sync>);
             }
         }
     }
+
+    let telemetry_options = telemetry::AgentOptions::from_args(&raw_args)?;
 
     // Carregamento de ficheiro de configuração (sentinela.toml ou caminho customizado)
     let mut custom_config_path: Option<String> = None;
@@ -168,6 +177,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 _ => {}
             }
             i += 2;
+        } else if (raw_args[i] == "--hub" || raw_args[i] == "--node-id") && i + 1 < raw_args.len() {
+            i += 2;
         } else if (raw_args[i] == "-c" || raw_args[i] == "--config") && i + 1 < raw_args.len() {
             i += 2;
         } else {
@@ -177,10 +188,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Lê portas custom passadas como argumento: ./sentinela 2222 8080 9999
     // Se nenhuma for passada, usa as portas do ficheiro de configuração ou padrão
-    let parsed_ports: Vec<u16> = raw_args
-        .iter()
-        .filter_map(|a| a.parse::<u16>().ok())
-        .collect();
+    let mut parsed_ports = Vec::new();
+    let mut positional = raw_args.iter();
+    while let Some(argument) = positional.next() {
+        if matches!(argument.as_str(), "--hub" | "--node-id" | "--webhook" | "--whitelist" | "--theme" | "-c" | "--config") {
+            positional.next();
+        } else if let Ok(port) = argument.parse::<u16>() {
+            parsed_ports.push(port);
+        }
+    }
 
     let mut trap_ports: Vec<u16> = if !parsed_ports.is_empty() {
         parsed_ports
@@ -194,7 +210,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         return Err("O dashboard requer um terminal: usa ssh -t host sentinela".into());
     }
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<Incident>();
+    let mut telemetry_agent = telemetry_options.map(telemetry::Agent::start).transpose()?;
+    let (tx, mut rx) = event_bus::channel();
 
     traps::init_logger().await;
     let log_file_name = traps::get_log_filename();
@@ -248,7 +265,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut search_active = false;
     let mut search_query = String::new();
 
-    let simulate_attack = |target_tx: &mpsc::UnboundedSender<Incident>| {
+    let simulate_attack = |target_tx: &event_bus::IncidentSender| {
         let now_str = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
         let _ = target_tx.send(Incident {
             timestamp: now_str.clone(),
@@ -391,6 +408,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
+            if let Some(agent) = telemetry_agent.as_mut() { agent.send(&incident); }
             log_batch.push(incident.clone());
             incidents.insert(0, incident);
             // Guarda mais incidentes em memória (100) para permitir scroll
@@ -446,8 +464,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let animation_tick = (start_time.elapsed().as_millis() / 250) as u64;
 
+        let delivery_status = if let Some(agent) = telemetry_agent.as_ref() {
+            use std::sync::atomic::Ordering;
+            format!(" drop {} | hub ok {} / drop {} / erro {} ",
+                event_bus::dropped(),
+                agent.counters.sent.load(Ordering::Relaxed),
+                agent.counters.dropped.load(Ordering::Relaxed),
+                agent.counters.failures.load(Ordering::Relaxed))
+        } else if event_bus::dropped() > 0 {
+            format!(" drop {} ", event_bus::dropped())
+        } else { String::new() };
+
         terminal.draw(|f| {
             let ui_ctx = ui::UiContext {
+                delivery_status: &delivery_status,
                 incidents: &incidents,
                 killswitch_active,
                 killswitch_failed,
@@ -988,7 +1018,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     restore_terminal();
+    if let Some(agent) = telemetry_agent { agent.finish().await; }
 
+    if event_bus::dropped() > 0 {
+        eprintln!("Sobrecarga: {} eventos/trabalhos descartados pelos limites de admissão.", event_bus::dropped());
+    }
     let duration = start_time.elapsed();
     let minutes = duration.as_secs() / 60;
     let seconds = duration.as_secs() % 60;
@@ -1130,7 +1164,11 @@ fn print_help() {
     println!("  --webhook <URL>   Dispara alertas em tempo real para webhook Discord/Slack");
     println!("  --whitelist <IPS> Lista de IPs confiáveis imunes ao Auto-Ban (ex: 192.168.1.1,10.0.0.1)");
     println!("  --theme <TEMA>    Tema visual inicial: cyber, matrix, midnight, contrast");
-    println!("  --simulate        Injeta incidentes simulados no arranque para testes e demos\n");
+    println!("  --simulate        Injeta incidentes simulados no arranque para testes e demos");
+    println!("  --hub <URL>       Envia telemetria opcional (token: SENTINELA_HUB_TOKEN)");
+    println!("  --node-id <ID>    Identidade estável do agente");
+    println!("  sentinela hub     Central HTTP autenticada com journal persistente");
+    println!("  sentinela watch --hub <URL>  Painel multi-host para SSH\n");
     println!("\x1b[1mATALHOS NO DASHBOARD:\x1b[0m");
     println!("  q / Ctrl+C      Sair do Sentinela e restaurar terminal");
     println!("  ↵ (Enter)       Raio-X forense detalhado do incidente selecionado");

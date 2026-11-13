@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 pub struct UiContext<'a> {
+    pub delivery_status: &'a str,
     pub incidents: &'a [Incident],
     pub killswitch_active: bool,
     pub killswitch_failed: bool,
@@ -203,6 +204,7 @@ pub fn render_ui(f: &mut Frame, ctx: &UiContext) {
     let is_ultra_compact = screen_width.saturating_sub(if screen_width >= 75 && screen_height >= 24 { 2 } else { 0 }) < 70;
 
     let UiContext {
+        delivery_status,
         incidents,
         killswitch_active,
         killswitch_failed,
@@ -728,7 +730,7 @@ pub fn render_ui(f: &mut Frame, ctx: &UiContext) {
     let footer = Paragraph::new(displayed_footer)
         .style(footer_style)
         .block(
-            Block::default()
+            Block::default().title(delivery_status)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.border_color())),
         );

@@ -23,7 +23,9 @@ jobs:
       - run: cargo test --locked
       - run: cargo build --release --locked
       - if: runner.os == 'Linux'
-        run: python3 scripts/test-mobile.py
+        run: |
+          python3 scripts/test-mobile.py
+          python3 scripts/test-telemetry.py
       - uses: actions/upload-artifact@v4
         with:
           name: sentinela-${{ runner.os }}-${{ runner.arch }}

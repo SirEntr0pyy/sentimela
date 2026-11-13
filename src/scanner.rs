@@ -5,14 +5,13 @@
 
 #[cfg(not(target_os = "linux"))]
 mod non_linux {
-    use crate::models::Incident;
-    use tokio::sync::mpsc::UnboundedSender;
+    use crate::event_bus::IncidentSender;
 
     /// No Windows e macOS portáteis sem drivers adicionais de kernel (Npcap / WinPcap),
     /// o scanner de pacotes raw fica desativado.
     /// O Sentinela opera 100% de forma segura e nativa através do motor
     /// de armadilhas assíncrono (TcpListener) nas portas definidas, sem precisar de instalações.
-    pub fn start_packet_scanner(_tx: UnboundedSender<Incident>, _trap_ports: Vec<u16>) -> bool {
+    pub fn start_packet_scanner(_tx: IncidentSender, _trap_ports: Vec<u16>) -> bool {
         false
     }
 }
@@ -41,7 +40,7 @@ mod linux {
         time::{Duration, Instant},
     };
     use tokio::runtime::Handle;
-    use tokio::sync::mpsc::UnboundedSender;
+    use crate::event_bus::IncidentSender;
 
     /// Janela de dedup por (IP, porto) — evita duplicar retransmissões do mesmo pacote.
     /// Curta o suficiente para não bloquear scans consecutivos.
@@ -91,7 +90,7 @@ mod linux {
     }
 
     /// Tenta iniciar o scanner de pacotes raw em todas as interfaces não-loopback.
-    pub fn start_packet_scanner(tx: UnboundedSender<Incident>, trap_ports: Vec<u16>) -> bool {
+    pub fn start_packet_scanner(tx: IncidentSender, trap_ports: Vec<u16>) -> bool {
         let interfaces = datalink::interfaces();
         let handle = Handle::current();
         let sweep_config = SweepConfig::default();
@@ -184,7 +183,9 @@ mod linux {
 
                                                 let tx2 = tx_clone.clone();
                                                 let label = scan_type.to_string();
+                                                let Some(permit) = crate::event_bus::admit() else { continue; };
                                                 rt.spawn(async move {
+                                                    let _permit = permit;
                                                     let (country, city, isp) =
                                                         inspect_ip(src_ip).await;
                                                     let rdns = resolve_rdns(src_ip).await;
@@ -242,7 +243,9 @@ mod linux {
                                                     history.clear();
 
                                                     let tx2 = tx_clone.clone();
+                                                    let Some(permit) = crate::event_bus::admit() else { continue; };
                                                     rt.spawn(async move {
+                                                        let _permit = permit;
                                                         let (country, city, isp) =
                                                             inspect_ip(src_ip).await;
                                                         let rdns = resolve_rdns(src_ip).await;

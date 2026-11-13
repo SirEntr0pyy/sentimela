@@ -1,394 +1,251 @@
-# Sentimela — Sentinela, mas o Salvador ficou em segundo
+# Sentimela 0.5 — o Salvador fez um Hub. Nós trouxemos SSH.
 
-> O Salvador fez o Sentinela. Nós fizemos o Salvador abrir o GitHub para ver o que se passou.
+> Centro de comando que cabe no terminal do telemóvel.
+> O mapa do Salvador é bonito. O nosso cabe entre o teclado e a bateria a 7%.
 
-Fork do [Sentinela do teizinh](https://github.com/teizinh/sentinela), afinado para
-SSH no telemóvel, marquee mais eficiente e menos trabalho a desenhar o ecrã.
-O objetivo é simples: vigiar a rede e ganhar esta competição absolutamente
-desnecessária entre amigos.
+Fork do [Sentinela de Salvador Pontes / teizinh](https://github.com/teizinh/sentinela):
+honeypots e deteção de sondagens em Rust, com **central multi-host, journal
+persistente e painel de terminal no mesmo executável**.
 
-**O melhor do mundo, segundo um júri independente composto por mim.**
-O Salvador foi convidado para o júri, mas alegou conflito de interesses.
+[Actions](https://github.com/SirEntr0pyy/sentimela/actions) ·
+[Releases](https://github.com/SirEntr0pyy/sentimela/releases) ·
+[Licença MIT](LICENSE)
 
-## Porque é que este fork é escandalosamente superior?
+## A competição teve uma atualização
 
-| Prova olímpica | Original do Salvador | Este fork, obviamente favorito |
+O Salvador integrou as nossas melhorias de SSH, marquee linear, polling de
+250 ms e builds multiplataforma no
+[merge e625d89](https://github.com/teizinh/sentinela/commit/e625d8927429b01d9855d7112da8032fd8c79940).
+Portanto, a tabela antiga já não servia para comparar com o original atual.
+Ele respondeu com o [Sentinela Hub](https://github.com/teizinh/sentinela-hub).
+Nós respondemos com **sentinela hub** e **sentinela watch**.
+
+**Liderança mundial em irritar o Salvador sem sair do SSH.**
+Classificação atribuída por um júri de uma pessoa que mantém este fork.
+
+### O que muda de verdade
+
+Comparação do código com o agente original em
+[d57a463](https://github.com/teizinh/sentinela/commit/d57a463271a6fc37144d1510f7ee95e8b587a6a1)
+e o Hub em
+[1680da8](https://github.com/teizinh/sentinela-hub/commit/1680da8e42).
+São referências fixas, não uma previsão do próximo contra-ataque.
+
+| Prova | Sentinela + Hub do Salvador | Sentimela |
 |---|---|---|
-| Marquee de texto comprido | Recalcula a largura de vários sufixos: custo O(n²) no pior caso. O texto vai passear e o CPU vai com ele. | Percurso linear O(n), sem criar um vetor de caracteres. O texto passeia sozinho, como uma pessoa adulta. |
-| Trabalho a preparar linhas | Prepara as linhas filtradas a partir da seleção, incluindo as que ficam fora do ecrã. Dedicação ao invisível. | Só prepara as linhas que podem ficar visíveis. O resto aguarda a sua vez, Salvador. |
-| Ciclo de espera sem teclas | Poll de 50 ms: até cerca de 20 ciclos/s em repouso. Sempre a perguntar «já chegámos?». | Poll de 250 ms: cerca de 4 ciclos/s em repouso. Cinco vezes menos oportunidades para fazer perguntas parvas. |
-| Colunas no telemóvel | Modo compacto e marquee já existiam, com larguras fixas em várias colunas. | Origem e alvo repartem o espaço disponível; o marquee usa as larguras calculadas. Até o IPv6 tem direito a habitação. |
-| Pesquisa e seleção | A tabela pesquisa; a seleção no ciclo principal só aplica a severidade. Duas realidades paralelas. | Filtro partilhado para mostrar e selecionar o mesmo incidente. A realidade foi finalmente unificada. |
-| Killswitch por SSH | O atalho continua disponível. Um botão de «até já» com muita confiança. | Desativado quando a sessão SSH é detetada. Gostamos de administrar o servidor até ao fim. |
-| Auto-ban do cliente SSH | Sem inclusão automática do cliente na whitelist. | O IP de `SSH_CONNECTION` entra na whitelist inicial. A chamada vem de dentro de casa e nós atendemos. |
-| Notificações desktop por SSH | Disparadas sem distinguir uma sessão remota. | Suprimidas em SSH e respeitam a configuração de notificações. O servidor já não procura um desktop imaginário. |
-| Limiar de auto-ban | A configuração existe, mas a decisão usa 80 fixo. Democracia decorativa. | A decisão lê `security.threat_threshold`; os port sweeps continuam a poder acionar o bloqueio. O TOML ganhou direitos. |
-| Terminal depois de um erro | Reposição na saída normal e no hook de panic. | Guarda de limpeza também nos erros propagados depois de ativar raw mode. Devolvemos o terminal com os talheres todos. |
-| Perfil de distribuição | Sem perfil release personalizado no Cargo.toml. | Thin LTO, uma unidade de codegen e símbolos removidos. O binário vai de mala de cabine. |
-| Builds de release | Workflow da base com Linux x86_64 e Windows x64. | Matriz configurada para Linux x86_64/ARM64, macOS Intel/Apple Silicon e Windows x64. O Salvador foi de carro; nós abrimos uma transportadora. |
+| Central no telemóvel por SSH | O agente tem TUI; o Hub é uma aplicação gráfica egui/eframe. | Agente, central sem interface gráfica e painel multi-host no mesmo binário. |
+| Autenticação da central | O servidor de ingestão consultado não verifica credenciais. | Bearer token obrigatório para ingestão, saúde e leitura do histórico. |
+| Bind inicial | Hub em 0.0.0.0:8765 por defeito. | 127.0.0.1:8765; exposição remota exige uma opção explícita. |
+| Confirmação de gravação | O handler ignora o resultado da escrita na base de dados antes de responder sucesso. | Só confirma depois de write_all e sync_data; falhas devolvem erro HTTP. |
+| Heartbeats do agente | Envio no arranque no código consultado. | No arranque e a cada 30 s; nós sem notícias há mais de 90 s aparecem offline. |
+| Entrega de telemetria | Uma tarefa e um cliente HTTP por envio, sem repetição no emissor consultado. | Um worker e cliente reutilizados; fila de 256 eventos e até três tentativas para falhas transitórias. |
+| Repetições de entrega | Sem deduplicação por identificador no handler consultado. | Deduplicação por nó e ID nos últimos 1024 eventos retidos. |
+| Painel sem novidades | Hub gráfico com animações. | Poll de 1 s com ETag/304; sem corpo de histórico quando a revisão e a janela de atualização não mudam. |
+| Armazenamento | SQLite WAL, adequado a consultas de histórico. | Journal JSONL até 64 MiB, reproduzido no arranque e legível com ferramentas de texto. |
+| Visualização | Mapa, gráficos e interface de desktop. | Lista multi-host com pesquisa, detalhes, marquee e correlações; pensada para SSH. |
 
-**Tradução para quem só veio pelo drama:** menos trabalho desnecessário na UI,
-mais cuidado com sessões SSH e um caminho de distribuição mais completo.
-O motor de deteção continua a partir do trabalho do Salvador. Não inventámos
-o fogo; só pusemos o extintor mais perto do teclado.
+O original tem funcionalidades que este fork ainda não integra, incluindo o
+mapa gráfico, honeyfiles e o detetor de DNS tunneling. A vantagem deste fork
+está no fluxo de terminal e no controlo da entrega e dos recursos da central.
+O Salvador continua a merecer os créditos. Infelizmente para a narrativa.
 
-### VAR: as bocas são exageradas; a comparação tem uma referência
+## Três modos, um executável
 
-A coluna «original» refere-se à base deste fork,
-[`ed61a21`](https://github.com/teizinh/sentinela/commit/ed61a21),
-não a todas as versões futuras do projeto dele.
+~~~bash
+sentinela                         # Dashboard local e honeypots
+sentinela hub --journal events.jsonl  # Central autenticada sem desktop
+sentinela watch --hub http://127.0.0.1:8765  # Painel multi-host
+~~~
 
-Foram validados localmente **40 testes** e ensaios com pseudo-terminal em
-**20×10, 32×16, 40×24, 69×24, 80×24 e 120×40**, incluindo pesquisa, detalhes,
-redimensionamento e reposição do terminal. O binário Linux medido neste ambiente
-ficou com cerca de **4,4 MiB**; o tamanho varia com a plataforma e a toolchain.
+A central só arranca com o subcomando **hub**. Executar o agente local sem
+**--hub** não ativa envio de telemetria para uma central.
 
-O «cinco vezes» acima compara os intervalos de poll, não é um benchmark de
-velocidade, CPU ou bateria. Os alvos de release indicados são os configurados no
-workflow; o resultado de cada execução está no
-[Actions deste fork](https://github.com/SirEntr0pyy/sentimela/actions).
-Não há certificado de «mais rápido do mundo», «100% failsafe» nem «universal».
-O certificado de «irritou o Salvador» está pendente de revisão pelo próprio.
+### 1. Preparar a central
 
----
+Gera um token uma vez e guarda-o fora do repositório:
 
-## SSH no telemóvel: a parte em que isto dá jeito
+~~~bash
+mkdir -p ~/.config/sentimela ~/.local/state/sentimela
+(umask 077; openssl rand -hex 32 > ~/.config/sentimela/hub.token)
+export SENTINELA_HUB_TOKEN="$(cat ~/.config/sentimela/hub.token)"
 
-Compila com `cargo build --release --locked`. No telemóvel, liga ao computador
-com `ssh -t utilizador@servidor sentinela` (ou abre uma sessão SSH e executa
-`sentinela`). O programa corre no servidor; não requer instalação no telemóvel.
-Para manter a sessão quando a ligação cai, executa-o dentro de `tmux`.
+sentinela hub --bind 127.0.0.1:8765   --journal ~/.local/state/sentimela/events.jsonl
+~~~
 
-As colunas adaptam-se ao espaço disponível e os textos longos deslocam-se
-automaticamente com pausas para leitura. Usa `j/n` e `p` para navegar,
-`Enter` para os detalhes, `/` para pesquisar e `q` para sair.
-Em repouso, a atualização faz quatro ciclos por segundo para reduzir trabalho
-e tráfego em ligações SSH.
+O servidor exige um token de 32 a 256 caracteres ASCII sem espaços. O journal novo é criado
+com permissões 0600 em Unix. A API usa HTTP local; para acesso remoto usa um
+túnel SSH ou um proxy HTTPS. Não há TLS nativo no servidor.
 
-Em SSH, as notificações desktop ficam desligadas, o endereço do cliente
-entra na whitelist inicial de auto-ban e o killswitch fica indisponível para
-evitar cortar a ligação. Isto não substitui acesso de recuperação ao servidor.
-A reposição do terminal funciona na saída normal, nos erros propagados e nos
-panics com unwinding; SIGKILL, falhas de energia e perda da ligação não permitem
-garantias de limpeza. Se necessário, usa `reset` após voltar a ligar.
+### 2. Ligar agentes
 
-O marquee usa um percurso linear do texto, a tabela só prepara as linhas
-visíveis e o binário release usa thin LTO e remoção de símbolos.
-Não há garantia de ser o mais rápido do mundo nem de compatibilidade com todos
-os terminais. A largura de emojis depende também do emulador e da fonte.
+Na sessão do agente, configura **o mesmo token da central** e um ID estável:
 
----
+~~~bash
+export SENTINELA_HUB_TOKEN="$(cat ~/.config/sentimela/hub.token)"
+sentinela --hub http://127.0.0.1:8765 --node-id vps-lisboa
+~~~
 
-## O que continua a ser Sentinela
+Em máquinas diferentes, distribui o segredo de forma segura e cria um túnel:
 
-<p align="center">
-  <strong>Network Intrusion Detection, Honeypot Traps and Traffic Monitor — written in Rust</strong>
-</p>
+~~~bash
+ssh -N -L 8765:127.0.0.1:8765 utilizador@central
+~~~
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Language-Rust-orange.svg" alt="Rust">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
-  <img src="https://img.shields.io/badge/Interface-Ratatui%20TUI-purple.svg" alt="Ratatui TUI">
-  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg" alt="Platforms">
-  <img src="https://img.shields.io/badge/Version-0.3.7-green.svg" alt="Version 0.3.7">
-</p>
+Depois usa http://127.0.0.1:8765 no agente ou painel desse computador.
+Para um proxy remoto, usa https://central.exemplo. O cliente rejeita HTTP
+fora de loopback, URLs com credenciais e redirecionamentos HTTP.
 
----
+Também podes definir **SENTINELA_HUB_URL**, **SENTINELA_NODE_ID** e
+**SENTINELA_NODE_NAME**. O envio é compatível com o formato de incidente plano do
+Hub original; o nosso cliente também consegue enviá-lo para esse Hub, que
+continua a ter as suas próprias condições de autenticação e persistência.
+O agente original consultado não envia Bearer token e não se liga diretamente
+à nossa API autenticada sem adaptar essa parte da integração.
 
-Sentinela runs on your machine and watches your network interfaces in real time. It detects port scans (including Nmap SYN stealth, NULL, FIN and XMAS scans), catches anything that connects to configurable honeypot ports, and lets you cut all network access instantly if needed. Everything is visible through a terminal dashboard that works from a desktop down to an SSH session on a phone.
+### 3. Abrir o painel no telemóvel
 
-It does not require a separate server, database or cloud account. It runs as a single binary.
+Numa sessão SSH com TTY na central, carrega o token e abre:
 
----
+~~~bash
+export SENTINELA_HUB_TOKEN="$(cat ~/.config/sentimela/hub.token)"
+sentinela watch --hub http://127.0.0.1:8765
+~~~
 
-## Install
+**j / n / ↓** avançam, **p / ↑** recuam, **/** pesquisa, **Enter** abre o JSON
+do incidente e **Esc** volta. **q** sai. Texto comprido faz marquee; só o incidente
+selecionado anima. Se a ligação à API falhar, o painel conserva o último
+snapshot e mostra o erro. Usa tmux para manter sessões entre reconexões SSH.
 
-**Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/SirEntr0pyy/sentimela/main/install.sh | bash
-```
+## Limites explícitos, para a competição não rebentar a RAM
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/SirEntr0pyy/sentimela/main/scripts/install.ps1 | iex
-```
+| Recurso | Limite |
+|---|---:|
+| Workers assíncronos do runtime | 2 |
+| Fila de deteções para o dashboard local | 1024 eventos |
+| Fila de enriquecimento dos honeypots | 256 ligações já processadas pelo diálogo |
+| Diálogos / enriquecimentos raw admitidos em simultâneo | 64, partilhados |
+| Fila de envio do agente | 256 eventos |
+| Tentativas HTTP por envio | Até 3; timeout de 3 s por tentativa |
+| Pedidos autenticados em processamento na central | 64 |
+| Corpo JSON por pedido | 16 KiB |
+| Payload capturado por evento enviado à central | 2048 bytes |
+| Nós apresentados pela central | 128 |
+| Histórico de eventos retido em memória | 1024 |
+| Eventos devolvidos em cada snapshot | 100 |
+| Journal persistente | 64 MiB |
+| Correlação multi-host | Mesmo IP em pelo menos 2 nós, nos eventos retidos dos últimos 10 min |
 
-### Pre-built packages
+Quando uma fila enche, o trabalho adicional é recusado ou descartado em vez de
+a fila crescer sem limite. O dashboard mostra **drop** e os contadores do envio
+ao Hub no rodapé; o agente imprime-os ao sair. Eventos demasiado grandes para
+a telemetria também são contabilizados como descartados.
 
-| Platform | Format | File |
-|---|---|---|
-| Linux (Debian / Ubuntu / Mint) | `.deb` | `sentinela-linux-x86_64.deb` |
-| Linux (Fedora / RHEL / openSUSE) | `.rpm` | `sentinela-linux-x86_64.rpm` |
-| Linux (universal) | `.tar.gz` | `sentinela-linux-x86_64.tar.gz` |
-| Linux ARM64 | `.deb`, `.tar.gz` | `sentinela-linux-arm64.*` |
-| macOS Intel | `.tar.gz` | `sentinela-macos-x86_64.tar.gz` |
-| macOS Apple Silicon | `.tar.gz` | `sentinela-macos-arm64.tar.gz` |
-| Windows | Installer | `sentinela-windows-x64-setup.exe` |
-| Windows | Portable zip | `sentinela-windows-x64.zip` |
+**Entrega com repetição limitada, não entrega garantida:** a fila do emissor
+fica em RAM. Uma falha prolongada ou a saída do processo pode perder eventos.
+Na saída há até cinco segundos para drenar a fila. Heartbeats e eventos
+partilham o worker de envio; não há uma fila separada de heartbeats.
 
-All releases are on the [Releases page](https://github.com/SirEntr0pyy/sentimela/releases). A combined `SHA256SUMS.txt` is included in every release.
+O limite de 64 pedidos aplica-se depois de os headers HTTP chegarem ao
+middleware; não é uma promessa de resistência a qualquer ataque de rede.
+A central destina-se a loopback / túnel SSH ou a um proxy configurado para
+controlar ligações e TLS. Há um segredo partilhado, sem permissões por nó.
 
----
+### Persistência e recuperação
 
-## What it does
+Os eventos confirmados são escritos e sincronizados antes do HTTP 200.
+O writer agrupa até 64 pedidos já em fila por sincronização. O arranque
+reconstitui os contadores e o histórico recente; uma última linha incompleta é
+removida. Corrupção numa linha completa impede o arranque e preserva o ficheiro.
 
-### Port scan detection
-On Linux, Sentinela reads raw packets directly from the network interface using `pnet` (requires `CAP_NET_RAW`). This lets it catch SYN stealth scans before the TCP handshake completes — the kind that `nmap -sS` and `masscan` use specifically to avoid leaving traces in application logs. It also detects NULL, FIN and XMAS scans. If a single IP hits five or more distinct ports within five seconds, it is flagged as a port sweep.
+Ao atingir 64 MiB, a central recusa novas gravações com HTTP 507.
+Arquiva o journal com a central parada e arranca com um novo ficheiro. Não há
+rotação automática nem limpeza silenciosa de histórico. Erros de escrita
+colocam a ingestão em modo de falha até reiniciar. Heartbeats são presença
+efémera; os eventos são persistentes. A API de saúde indica se o journal está
+disponível para escrita.
 
-On Windows and macOS — or on Linux without the raw socket capability — the scanner degrades gracefully. Honeypot traps continue to work normally.
+A sincronização depende das garantias do sistema de ficheiros e do dispositivo;
+não substitui backups. SIGKILL e falhas de energia continuam a existir,
+apesar de o Salvador ter sido convidado a resolvê-los pessoalmente.
 
-### Honeypot trap ports
-Sentinela binds a set of ports and waits. Any incoming connection triggers an alert. Default trap ports: `2121`, `2222`, `2323`, `8080`, `8443`. You can pass your own list at startup:
-```bash
-sentinela 22 3306 5432 9200
-```
+## O agente local continua a fazer o trabalho
 
-### Emergency killswitch
-Press `k` to drop all network traffic instantly. On Linux this inserts blocking rules into `iptables`/`ip6tables` and calls `rfkill block all`. Press `k` again to restore everything. If Sentinela exits while the killswitch is active, it cleans up automatically.
+- Honeypots TCP com interação de protocolos e captura de payload.
+- Deteção raw de SYN e scans stealth em Linux, com CAP_NET_RAW.
+- Pesquisa de incidentes, temas, GeoIP, rDNS e inspeção forense.
+- Auto-ban configurável, whitelist, webhooks e exportação
+  JSON / CSV / PCAP / CEF / Syslog / Markdown / HTML.
+- Proteção SSH: whitelist inicial do cliente, killswitch indisponível nessa
+  sessão e notificações desktop suprimidas.
+- Marquee linear, preparação das linhas visíveis e polling de 250 ms em repouso.
 
-### Deep incident forensic inspection, reverse DNS & MITRE ATT&CK mapping
-Press `Enter` on any highlighted incident to open a full forensic modal showing detailed SOC telemetry:
-- **MITRE ATT&CK Enterprise Matrix:** Automatically classifies probes into techniques (e.g., `T1046: Network Service Discovery`, `T1110.001: Brute Force Password Guessing`, `T1190: Exploit Public-Facing Application`, `T1210: Exploitation of Remote Services`, `T1021: Remote Services`).
-- **Forensic Hexdump Viewer:** Displays captured packet headers and payload bytes in canonical `xxd` / Wireshark hexdump formatting.
-- **Network Telemetry:** Async Reverse DNS (PTR), Geolocation (with detailed RFC 1918 / RFC 6598 CGNAT local subnet classification), ISP entity, target port, Threat Score, and firewall remediation command.
+As filas e a admissão estão limitadas; isso não significa que todas as
+estruturas antigas tenham um limite global de memória. Estatísticas por IP,
+caches e logs locais do agente têm as suas próprias políticas.
 
-### Trusted IP whitelisting
-Manage a local whitelist of trusted IP addresses (gateways, internal scanners, management workstations) that are immune to auto-ban. Press `u` in the dashboard or forensic modal to add or remove an IP. You can also supply initial whitelisted addresses via `--whitelist <IP1,IP2>` or the `SENTINELA_WHITELIST` environment variable. Whitelisted addresses are rendered with a distinct green `[OK]` badge.
-
-### Interactive honeypot protocol emulation & banner sniffing
-When an attacker connects to an active honeypot port, Sentinela dynamically interacts using authentic protocol handshakes:
-- **SSH (22/2222):** Transmits standard OpenSSH banner (`SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6`), capturing scanner identities and tool strings (e.g. libssh, PuTTY, Nmap NSE).
-- **FTP (21/2121):** Emulates vsFTPd, accepts anonymous or named users and prompts for credentials, logging captured authentication attempts.
-- **Telnet (23/2323):** Displays authentic Debian login prompt and captures user inputs.
-- **SMTP (25):** Emulates Postfix ESMTP server and captures `HELO`/`EHLO` probes.
-- **HTTP (80/8080):** Returns authentic `401 Unauthorized` responses with Nginx server headers and Basic Auth prompts to lure automated path discovery bots.
-- **Redis (6379):** Simulates protected mode with `-NOAUTH Authentication required.`.
-
-Captured banners and payloads are sanitized, displayed in the forensic modal, and included in threat reports.
-
-### Automated threat auto-ban
-Toggle automated firewall enforcement with `x` in the dashboard or launch with `--auto-ban`. Sentinela continuously evaluates attacker risk based on port sensitivity, payload signatures, and frequency. Any address reaching a **Threat Score ≥ 80** or performing a port sweep is instantaneously blocked at the firewall level (`DROP`). Built-in loopback and local subnet whitelisting prevents self-lockout. Temporary bans are cleanly removed on exit.
-
-### Real-time Discord / Slack webhook dispatcher
-Launch with `--webhook <URL>` or set the `SENTINELA_WEBHOOK` environment variable to stream critical threat detections and auto-ban events straight to your security operations Discord or Slack channel with rich color-coded embed payloads and zero terminal UI latency.
-
-### Real-time traffic pulse & sparkline
-On wider terminal screens, Sentinela renders a live unicode `Sparkline` graph in the header displaying attack intensity and frequency over rolling 24-second windows.
-
-### Surgical per-IP firewall ban & unban
-Press `b` in the dashboard or within the inspection modal to immediately block the attacker IP with an active firewall rule (`iptables -I INPUT 1 -s <IP> -j DROP` on Linux or `netsh advfirewall` on Windows). Banned addresses are marked with a distinct `[BAN]` badge in the incident table. Pressing `b` again unbans the IP. All surgical bans are cleaned up automatically on exit to prevent orphaned rules.
-
-### Audio & desktop alert toggle
-Press `a` to toggle immediate audio terminal bell (`\x07`) sounds and high-urgency OS desktop notifications for incoming Critical and Port Sweep alerts.
-
-### Threat intelligence & SIEM multi-format export
-Press `e` at any time to dump complete session threat intelligence in 5 industry-standard formats:
-- `sentinela_report_YYYY-MM-DD_HH-MM-SS.json`: Full machine-readable SOC audit report including system metadata, active honeypots, whitelist, MITRE tactics, and incident scoring.
-- `sentinela_report_YYYY-MM-DD_HH-MM-SS.csv`: Tabular forensic format for spreadsheet analysis.
-- `sentinela_capture_YYYY-MM-DD_HH-MM-SS.pcap`: Fully valid libpcap binary packet trace containing synthesized Ethernet/IP/TCP frames and payloads for every captured probe — inspectable directly in **Wireshark** and **tcpdump**!
-- `sentinela_report_YYYY-MM-DD_HH-MM-SS.cef`: Micro Focus ArcSight Common Event Format (CEF) compatible with **Splunk**, **Wazuh**, **Elastic**, and **QRadar**.
-- `sentinela_report_YYYY-MM-DD_HH-MM-SS.syslog`: Standard RFC 5424 structured syslog stream ready for **rsyslog**, **Logstash**, and **Graylog** ingestion.
-
-### Dynamic live honeypot trap deployment
-Press `o` in the dashboard to open the live trap spawner prompt. Type any TCP port (e.g. `3306`, `5432`, `8000`) and press `Enter`. Sentinela immediately binds an asynchronous listener dual-stack (IPv4 & IPv6) and attaches protocol handshake emulation without restarting the monitoring daemon.
-
-### Active sockets inspector
-
-The `c` panel currently reads Linux `/proc/net` tables. Socket enumeration is
-Linux-only; Windows and macOS currently return an empty list in this panel.
-Honeypot detection remains available on those platforms.
-
-### Executive SOC metrics & telemetry dashboard
-Press `m` to toggle the dedicated Metrics and Forensic Analytics modal:
-- **Target Port Distribution:** Real-time proportional ASCII histogram of top attacked ports.
-- **MITRE ATT&CK Matrix:** Ranked breakdown of observed adversarial tactics (Discovery, Initial Access, Lateral Movement).
-- **Severity Breakdown:** Incident count across Critical, Sweep, Medium, and Alert tiers.
-- **Active Defense Posture:** Live count of active firewall drops, whitelisted assets, and raw kernel packet sniffer status.
-
-### Persistent TOML configuration
-Sentinela automatically looks for configuration in `./sentinela.toml` or `~/.config/sentinela/config.toml`.
-- Run `sentinela --init-config` to generate a well-commented template in your current directory.
-- Pass a custom configuration file anytime with `--config <PATH>` or `-c <PATH>`.
-- Configure default trap ports, firewall auto-ban thresholds, trusted IP whitelist, webhook URLs, and visual themes persistently.
-
-### Visual dashboard themes
-Press `t` to cycle through 4 distinct visual themes:
-- **Cyber SOC (Default):** High-tech cyan, yellow, and red SOC aesthetics.
-- **Matrix Hacker:** Classic monochrome phosphor green and dark shades.
-- **Midnight Violet:** Dark indigo borders with magenta and cyan highlights.
-- **High Contrast:** Crisp white and bold yellow layout designed for bright environments or classroom projectors.
-You can also launch with a specific theme using `--theme matrix` or set `SENTINELA_THEME=matrix`.
-
-### Real-time forensic search & filter
-Press `/` in the dashboard to open an inline search bar. Type any IP, port number, or service keyword (e.g. `/192.168`, `/22`, `/admin`, `/CRIT`) to filter live incidents in real time. Press `Enter` to commit the filter or `Esc` to clear and return.
-
-### Diagnostic attack simulation
-Press `s` or launch with `--simulate` to inject realistic diagnostic test attack sequences (SSH brute-force, web vulnerability probing, and horizontal port sweeps) to test alerting sounds, webhooks, MITRE mapping, and auto-ban behavior without needing an external machine.
-
-### GeoIP lookup
-Every detected IP is looked up against the [ip-api.com](http://ip-api.com) service. Country, city and ISP are shown in the dashboard and written to the log. Results are cached for the session; failed lookups retry after two minutes.
-
-### Audit logs
-Incidents are written to daily log files (`sentinela_YYYY-MM-DD.log`) in the working directory. The format is plain text, one line per event. When an IP is seen again, the hit counter on its log line is updated in place.
-
-### Session report
-When you quit, Sentinela prints a summary to the terminal: uptime, total alerts, unique IPs seen, the most active source, the most targeted port, and a breakdown by severity.
-
----
-
-## Incident severity levels
-
-| Level | Colour | Triggered by |
-|---|---|---|
-| Critical | Red | Connections to SSH (22, 2222), Telnet (23, 2323), Redis (6379), MongoDB (27017) traps |
-| Sweep | Red | ≥ 5 distinct ports from the same IP within 5 seconds |
-| Medium | Yellow | Connections to FTP, SMTP, MySQL, PostgreSQL, RDP traps |
-| Scan | Magenta | Raw SYN / NULL / FIN / XMAS packet detected |
-| Alert | Cyan | Connections to DNS, HTTP, HTTPS or custom traps |
-
----
-
-## Dashboard
-
-The terminal UI adapts to the available width:
-
-| Terminal width | Columns shown |
+| Tecla | Ação no dashboard do agente |
 |---|---|
-| Under 70 columns | Time, Risk, Source, Target |
-| 70 – 94 columns | + Location |
-| 95 columns and above | + Hits, ISP |
+| q / Ctrl+C | Sair |
+| j / n / ↓, p / ↑ | Navegar |
+| Enter | Inspecionar incidente |
+| /, f | Pesquisa e filtro de severidade |
+| b, u, x | Banir, whitelist e auto-ban |
+| c, m, w | Sockets, métricas e auditor de portas |
+| o, s, e | Abrir honeypot, simular e exportar |
+| t, l, i | Tema, idioma e ajuda |
+| k, r | Killswitch e restauro da rede em sessão local |
 
-The header shows current network interface IPs, raw scanner status, and system info. An asterisk next to an IP (`192.168.1.1*`) means that address has triggered more than one alert this session.
+O inspetor de sockets lê /proc/net e é específico de Linux. Raw capture e
+ações de firewall dependem da plataforma e das permissões. O painel watch
+não executa bloqueios de firewall.
 
-The UI language switches between Portuguese and English at runtime. It is auto-detected from your `$LANG` / `$LC_ALL` environment variable at startup and can be toggled at any time with `l`.
+## Instalar e compilar
 
-### Keyboard shortcuts
+Os instaladores apontam para as [releases deste fork](https://github.com/SirEntr0pyy/sentimela/releases).
+Novas funcionalidades só chegam a esses downloads depois de publicar uma
+release com os respetivos pacotes.
 
-| Key | Action |
-|---|---|
-| `q` / `Ctrl+C` | Exit (cleans up any active killswitch and temporary bans) |
-| `c` | Open live active network sockets & connections inspector (LISTEN, ESTABLISHED) |
-| `Enter` | Open deep forensic inspection modal for selected incident |
-| `b` | Surgically ban / unban selected attacker IP (DROP firewall rule) |
-| `u` | Add / remove selected IP to/from trusted whitelist (immune to auto-ban) |
-| `x` | Toggle automated firewall auto-ban for high-threat IPs (Threat Score ≥ 80) |
-| `t` | Cycle visual dashboard themes (Cyber SOC / Matrix / Midnight / High Contrast) |
-| `/` | Live interactive search & filter by IP, port or service keyword |
-| `o` | Spawn dynamic live honeypot trap on specified TCP port |
-| `m` | Executive SOC metrics & forensic telemetry analytics panel |
-| `s` | Inject diagnostic test attack simulation sequence into SOC |
-| `e` | Export session Threat Intel (JSON, CSV, PCAP, CEF, Syslog, Markdown, and HTML) |
-| `a` | Toggle audio bell alarm and desktop notifications |
-| `i` | Open / close help modal |
-| `w` | Open / close port security audit |
-| `l` | Toggle language (PT / EN) |
-| `k` | Toggle emergency network killswitch |
-| `f` | Cycle severity filter: All → Critical → Medium and above |
-| `r` | Restore network (undo killswitch) |
-| `↑` / `↓` / `j` / `k` | Scroll incident list |
-| `PgUp` / `PgDn` | Scroll 5 lines at a time |
-| `Home` / `End` | Jump to top / bottom |
-| `Esc` | Close any open modal |
+~~~bash
+# A partir deste repositório, com Rust stable e um compilador C
+cargo build --release --locked
+./target/release/sentinela --help
+./target/release/sentinela hub --help
+~~~
 
-Scrolling works the same way inside the help and port audit modals.
+O binário usa thin LTO e remoção de símbolos. O tamanho depende da plataforma
+e da toolchain; os 4,4 MiB medidos na versão anterior não são um benchmark desta.
 
----
+Pacotes configurados: Linux x86_64 (.deb, .rpm, .tar.gz), Linux ARM64
+(.deb, .tar.gz), macOS Intel / Apple Silicon (.tar.gz) e Windows x64
+(.zip, instalador NSIS). O nome do executável continua a ser **sentinela**.
 
-## Build from source
+## Validação e releases
 
-**Dependencies:**
-- Rust and Cargo 1.70 or later
-- On Linux: `libpcap` and `libcap`
+~~~bash
+cargo test --locked
+cargo build --release --locked
+python3 scripts/test-mobile.py
+python3 scripts/test-telemetry.py
+~~~
 
-```bash
-# Fedora / RHEL
-sudo dnf install libpcap-devel libcap
+Os testes cobrem autenticação HTTP, limites de corpo e fila, validação de
+eventos, falha de escrita, recuperação de journal, deduplicação, correlação,
+heartbeats repetidos e respostas 304. Os scripts Python exercitam o binário
+real com pseudo-terminais, incluindo pesquisa, detalhes, resize e restauro.
 
-# Debian / Ubuntu
-sudo apt install libpcap-dev libcap2-bin
-```
+Actions executa testes e builds para Linux, Windows e macOS. Os testes de
+pseudo-terminal são de Linux. A release Apple Silicon é compilada num runner
+Intel; não equivale a um teste de execução em ARM64.
+Consulta o resultado efetivo de cada run no [Actions](https://github.com/SirEntr0pyy/sentimela/actions):
+uma matriz configurada não significa que os runners estejam disponíveis.
 
-**Using the included script (recommended):**
-```bash
-chmod +x run.sh
-./run.sh
+Para publicar: atualiza Cargo.toml e Cargo.lock, faz commit e envia a tag
+correspondente (**v0.5.0** para esta versão). O workflow testa, empacota e verifica
+os checksums antes de publicar. Também aceita uma tag existente por execução
+manual. Não publica automaticamente só por fazer push a main.
 
-# With custom trap ports:
-./run.sh 22 3306 9200
-```
+## Créditos
 
-The script builds a release binary, applies `CAP_NET_RAW` automatically, and runs it.
-
-**Manual:**
-```bash
-cargo build --release
-sudo setcap cap_net_raw,cap_net_admin+eip target/release/sentinela
-./target/release/sentinela
-```
-
----
-
-## Code structure
-
-| File | Role |
-|---|---|
-| `src/main.rs` | Entry point, event loop, CLI argument parsing, async coordination |
-| `src/models.rs` | Core data types: `Incident`, `PortWarning`, `SeverityFilter`, `Language` |
-| `src/network.rs` | Raw packet capture, GeoIP, killswitch, local port scanner, desktop notifications |
-| `src/scanner.rs` | Heuristic scan detection (SYN stealth, NULL, FIN, XMAS, port sweeps) |
-| `src/traps.rs` | Honeypot TCP listeners, connection handling, alert generation |
-| `src/ui.rs` | Ratatui rendering, responsive layout, modals |
-
-The scanner module (`src/scanner.rs`) is Linux-only and compiled conditionally. On other platforms, the rest of the application continues to work through the trap-based detection in `src/traps.rs`.
-
----
-
-## Notes on permissions
-
-Raw packet capture on Linux requires `CAP_NET_RAW`. The install script and `run.sh` set this capability on the binary automatically using `setcap`. If you run the binary without it, Sentinela will still start and the honeypot traps will still work — only the raw scanner will be inactive, which is shown in the header.
-
-The killswitch also needs `CAP_NET_ADMIN` (or root) to insert `iptables` rules. Without it, it falls back to bringing interfaces down via `ip link`.
-
----
-
-## Platform support
-
-| Feature | Linux | Windows |
-|---|---|---|
-| Honeypot traps | ✓ | ✓ |
-| Raw scan detection | ✓ | — |
-| Auto-Ban firewall rules | ✓ (iptables) | ✓ (netsh) |
-| Trusted Whitelisting | ✓ | ✓ |
-| MITRE ATT&CK Mapping | ✓ | ✓ |
-| Wireshark PCAP export | ✓ | ✓ |
-| Live search & Themes | ✓ | ✓ |
-| Webhook alerts | ✓ | ✓ |
-| Killswitch | ✓ (iptables + rfkill) | ✓ (PowerShell) |
-| Desktop notifications | ✓ (notify-send) | ✓ (PowerShell) |
-| GeoIP lookup | ✓ | ✓ |
-| Audit logs | ✓ | ✓ |
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
----
-
-*Projeto original por [teizinh / Salvador Pontes](https://github.com/teizinh). Fork por [SirEntr0pyy](https://github.com/SirEntr0pyy). A rivalidade é amigável; a licença continua MIT.*
-
-
-## Builds and releases for this fork
-
-Every push and pull request runs tests and creates downloadable release-mode
-binaries in Actions for Linux, Windows and macOS. The Check workflow also supports
-manual runs.
-
-For a release, update the package version in Cargo.toml and Cargo.lock, commit,
-then push a matching tag (`vX.Y.Z`). Release Sentinela tests and packages Linux
-x86_64 / ARM64, macOS Intel / Apple Silicon and Windows x64. It publishes the
-packages and a verified SHA256SUMS.txt only after every build succeeds.
-You can also run it manually with an existing tag or publish a GitHub release.
-The workflow checks out that tag and rejects a tag that differs from Cargo.toml.
-Manual runs are available under Actions → Release Sentinela → Run workflow.
+Projeto original por [Salvador Pontes / teizinh](https://github.com/teizinh).
+Fork por [SirEntr0pyy](https://github.com/SirEntr0pyy).
+A rivalidade é amigável. O código continua sob [MIT](LICENSE).
