@@ -57,8 +57,8 @@ sentinela hub --journal events.jsonl  # Central autenticada sem desktop
 sentinela watch --hub http://127.0.0.1:8765  # Painel multi-host
 ~~~
 
-A central só arranca com o subcomando **hub**. Executar o agente local sem
-**--hub** não ativa envio de telemetria para uma central.
+A central só arranca com o subcomando **hub**. O agente só envia telemetria
+quando configuras **--hub** ou **SENTINELA_HUB_URL**.
 
 ### 1. Preparar a central
 
