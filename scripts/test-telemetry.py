@@ -19,7 +19,9 @@ import urllib.request
 
 BINARY = os.environ.get("SENTINELA_TEST_BINARY", str(Path(__file__).resolve().parents[1] / "target/release/sentinela"))
 TOKEN = secrets.token_hex(32)
-ENV = dict(os.environ, SENTINELA_HUB_TOKEN=TOKEN, TERM="xterm-256color",
+ENV = dict({key: value for key, value in os.environ.items()
+            if not key.startswith("SENTINELA_")},
+           SENTINELA_HUB_TOKEN=TOKEN, TERM="xterm-256color",
            SSH_CONNECTION="192.0.2.1 54321 192.0.2.2 22")
 
 
@@ -102,6 +104,8 @@ def terminal_run(arguments, directory, width, height, actions):
 
 
 with tempfile.TemporaryDirectory(prefix="sentimela-e2e-") as directory:
+    Path(directory, "sentinela.toml").write_text(
+        "[security]\nauto_ban = false\n[alerts]\ndesktop_notifications = false\n")
     process, url = start_hub(directory)
     try:
         assert request(url, "/api/v1/snapshot", authenticated=False)[0] == 401

@@ -17,7 +17,10 @@ for width, height in [(20, 10), (32, 16), (40, 24), (69, 24), (80, 24), (120, 40
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
     original = termios.tcgetattr(slave)
     with tempfile.TemporaryDirectory(prefix="sentinela-pty-") as directory:
-        environment = dict(os.environ, TERM="xterm-256color",
+        Path(directory, "sentinela.toml").write_text(
+            "[security]\nauto_ban = false\n[alerts]\ndesktop_notifications = false\n")
+        environment = dict({key: value for key, value in os.environ.items()
+                            if not key.startswith("SENTINELA_")}, TERM="xterm-256color",
                            SSH_CONNECTION="192.0.2.1 54321 192.0.2.2 22")
         process = subprocess.Popen([binary, "--simulate", "0"], cwd=directory,
                                    stdin=slave, stdout=slave, stderr=slave,
