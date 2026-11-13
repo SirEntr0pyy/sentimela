@@ -426,9 +426,16 @@ async fn heartbeats_repeat_without_incidents() {
             listener,
             Router::new().route(
                 "/api/v1/heartbeat",
-                post(move || {
+                post(move |axum::Json(body): axum::Json<serde_json::Value>| {
                     let count = count.clone();
                     async move {
+                        if serde_json::from_value::<Node>(body.clone()).is_err()
+                            || body["incident_count"].as_u64().is_none()
+                            || body["online"] != true
+                            || body["last_seen"].as_str().unwrap_or("").is_empty()
+                        {
+                            return StatusCode::BAD_REQUEST;
+                        }
                         count.fetch_add(1, Ordering::Relaxed);
                         StatusCode::NO_CONTENT
                     }

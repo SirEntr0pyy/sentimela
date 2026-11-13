@@ -144,8 +144,17 @@ impl Agent {
             loop {
                 tokio::select! {
                     _ = heartbeat.tick() => {
+                        let body = serde_json::json!({
+                            "id": options.node.id,
+                            "name": options.node.name,
+                            "ip": options.node.ip,
+                            "version": options.node.version,
+                            "last_seen": chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+                            "incident_count": stats.sent.load(Ordering::Relaxed),
+                            "online": true,
+                        });
                         if !post(&client, &format!("{}/api/v1/heartbeat", options.url),
-                            options.secret.as_deref(), &options.node).await {
+                            options.secret.as_deref(), &body).await {
                             stats.failures.fetch_add(1, Ordering::Relaxed);
                         }
                     }
